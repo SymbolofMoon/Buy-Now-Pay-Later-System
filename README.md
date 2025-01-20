@@ -3,13 +3,10 @@
 - [Buy Now, Pay Later System](#BuyNowPayLaterSystem)
 - [Functional Requirements](#functional-requirements) 
 - [NonFunctional Requirements](#nonfunctional-requirements)
-- [Bonus Points](#Bonus-Points)
 - [Database Schema](#database-schema)
 - [API Endpoints](#api-endpoints)
-- [Points to consider](#points-to-consider)
 - [High Level System Design](#high-level-system-design)
 - [Low Level System Design](#low-level-system-design)
-- [Bonus Point Discussion](#bonus-points-discussion)
 # Buy Now, Pay Later System
 
   We want to design a system where users can purchase items on credit and repay the borrowed amount using fixed monthly payments or EMIs. The system should calculate penalties for late payments and interest for EMIs.
@@ -34,31 +31,41 @@
 
 
 ## NonFunctional Requirements
+1. Scalability
+2. Performance
+3. Low Latency
 
-
-## Bonus Points
--  Secure API via oAuth2
--  Optimize API for 100K RPM
--  Establish CI/CD Pipeline (feel free to use open-source tools)
--  Create a messaging event that publishes the username and the image name to a Messaging Platform (Ex: Kafka)
-    & feel free to connect with a local or cloud instance of the Messaging Platform.
--  Preferably following the TDD approach for Junit test cases
 
 ## Database Schema
--  We are using H2(In Memory Database) as given in the requirement
+-  We are using SQL(In Memory Database) as it provide ACID Properties which can use in our app.
 -  There are two relational tables which are as follows:
-    -  User
-        -  id: Generated ID
-        -  username: Unique Parameter
-        -  password: Storing password in encrypted form with the help of Bcrypt
-        -  email: Unique Parameter
-        -  List<Image>images: List of images and OnetoMany relations
-    -  Image
-        -  id: Generated ID
-        -  imgurId: Id that ImgurAPI generates
-        -  imgurLink: The Image link that is uploaded to Imgur
-        -  imgurDeleteHash: The delete hash used to delete the image in Imgur
-        -  imgurName: The name of the file that is uploaded
+    1. User Table    
+       - user_id	VARCHAR	Primary Key
+       - name	VARCHAR	User's name
+       - email	VARCHAR	User's email
+       - credit_limit	DECIMAL(10, 2)	Max credit limit
+       - available_credit	DECIMAL(10, 2)	Remaining credit
+    2. Purchase Table
+        - purchase_id	VARCHAR	Primary Key
+        - user_id	VARCHAR	Foreign Key to User Table
+        - amount	DECIMAL(10, 2)	Purchase amount
+        - purchase_date	TIMESTAMP	Date of purchase
+    3. Repayment Plan Table        
+         - plan_id	VARCHAR	Primary Key
+         - purchase_id	VARCHAR	Foreign Key to Purchase Table
+         - type	ENUM	Full Payment / EMI
+         - emi_months	INT	Duration of EMI in months
+         - interest_rate	DECIMAL(5, 2)	Interest rate
+         - emi_amount	DECIMAL(10, 2)	Monthly EMI
+         - start_date	TIMESTAMP	EMI start date
+         - end_date	TIMESTAMP	EMI end date
+    4. Payment Table
+         - payment_id	VARCHAR	Primary Key
+         - plan_id	VARCHAR	Foreign Key to Repayment Plan
+         - payment_date	TIMESTAMP	Date of payment
+         - amount_paid	DECIMAL(10, 2)	Amount paid
+         - penalty_amount	DECIMAL(10, 2)
+
 
 ## API Endpoints
   - 
@@ -86,3 +93,26 @@
   ![Logo](image.png)
 
 
+- For Scalability, we can introduce a load balancer which will transfer the request to various application instances. We can horizontally scale the servers by adding more server.
+- For Latency, we can improve database read query optimization, by using read replicas which are used for using optimization.
+- For Performance, we can use Redis cache in front of database which will improve the performance 
+
+## Low Level System Design
+1. UserService:
+  - Methods:
+      - User registerUser(String name, String email, BigDecimal creditLimit);
+      - BigDecimal getAvailableCredit(String userId);
+      - void updateCredit(String userId, BigDecimal amount);
+2. PurchaseService
+  - Methods:
+    - Purchase recordPurchase(String userId, BigDecimal amount, boolean isEMI, int emiMonths);
+3. RepaymentService:
+  - Methods:
+    - RepaymentPlan createRepaymentPlan(String purchaseId, PlanType type, int emiMonths, BigDecimal interestRate);
+    - void recordPayment(String planId, BigDecimal amountPaid);
+    - BigDecimal calculatePenalty(String planId, LocalDateTime paymentDate);
+4. ReportService:
+  - Methods:
+     - List<RepaymentPlan> getOutstandingPayments(LocalDate startDate, LocalDate endDate, List<String> userIds);
+     - String getMostCommonPaymentPlan();
+     - List<RepaymentPlan> getRepaymentHistory(
