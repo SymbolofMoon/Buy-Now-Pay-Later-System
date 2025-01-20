@@ -83,6 +83,6 @@
 
 ## High level system design
 -  This is the Flow
-  ![Logo](images.png)
+  ![Logo](image.png)
 
 
